@@ -1,0 +1,63 @@
+---
+title: "Data Hack"
+author: "Kevin Zhang"
+date: "2025-05-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readr)
+library(lubridate)
+
+# Import the Zillow data
+zillow_data <- read_csv("Zip_zori_uc_sfrcondomfr_sm_month.csv")
+
+# Filter to include only California zipcodes
+ca_zillow_data <- zillow_data %>%
+  filter(StateName == "CA" | State == "CA")
+
+## Transform from wide to long format
+
+# First identify the columns that contain dates of rent data
+date_columns <- names(ca_zillow_data)[10:ncol(ca_zillow_data)]
+
+# Convert to long format
+ca_zillow_long <- ca_zillow_data %>%
+  pivot_longer(
+    cols = all_of(date_columns),
+    names_to = "Date",
+    values_to = "RentIndex"
+  )
+
+# Convert date strings to actual Date objects
+ca_zillow_long <- ca_zillow_long %>%
+  mutate(
+    Date = as.Date(Date, format = "%Y-%m-%d"),
+    # Handle any missing values in RentIndex
+    RentIndex = replace_na(RentIndex, median(RentIndex, na.rm = TRUE))
+  )
+
+# Final dataset
+clean_ca_zillow <- ca_zillow_long %>%
+  select(
+    ZIPCode = RegionName, 
+    City, 
+    County = CountyName, 
+    Metro, 
+    Date, 
+    RentIndex
+  )
+
+# Sort by ZIP code and date
+clean_ca_zillow <- clean_ca_zillow %>%
+  arrange(ZIPCode, Date)
+
+# Saving the cleaned dataset
+write_csv(clean_ca_zillow, "clean_california_zillow_rent.csv")
+```
+
